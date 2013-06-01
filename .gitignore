@@ -1,3 +1,2 @@
-# export BOUNDARY_ORG_ID and BOUNDARY_API_KEY environment variables here
-.config 
-
+# export BOUNDARY_API_KEY and BOUNDARY_ORG_ID environment variables here
+.config
