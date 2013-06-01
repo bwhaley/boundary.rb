@@ -1,10 +1,19 @@
 #!/usr/bin/env ruby
 
+unless Kernel.respond_to?(:require_relative)
+  module Kernel
+    def require_relative(path)
+      require File.join(File.dirname(caller[0]), path.to_str)
+    end
+  end
+end
+
 auth = {}
 auth[:org] = ENV['BOUNDARY_ORG_ID'] unless ENV['BOUNDARY_ORG_ID'].nil?
 auth[:key] = ENV['BOUNDARY_API_KEY'] unless ENV['BOUNDARY_API_KEY'].nil?
 abort("Please define BOUNDARY_ORG_ID and BOUNDARY_API_KEY variables.") unless (auth[:org] && auth[:key])
 
+require 'rubygems'
 require 'optparse'
 require_relative '../lib/boundary'                                                                            
 
@@ -59,14 +68,5 @@ if @options[:list]
   list(auth)
 elsif @options[:delete]
   delete(auth,@options[:name])
-end
-
-# Work around for ruby < 1.9
-unless Kernel.respond_to?(:require_relative)
-  module Kernel
-    def require_relative(path)
-      require File.join(File.dirname(caller[0]), path.to_str)
-    end
-  end
 end
 
