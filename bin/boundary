@@ -61,3 +61,12 @@ elsif @options[:delete]
   delete(auth,@options[:name])
 end
 
+# Work around for ruby < 1.9
+unless Kernel.respond_to?(:require_relative)
+  module Kernel
+    def require_relative(path)
+      require File.join(File.dirname(caller[0]), path.to_str)
+    end
+  end
+end
+
