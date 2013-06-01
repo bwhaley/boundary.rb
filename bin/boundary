@@ -1,0 +1,63 @@
+#!/usr/bin/env ruby
+
+auth = {}
+auth[:org] = ENV['BOUNDARY_ORG_ID'] unless ENV['BOUNDARY_ORG_ID'].nil?
+auth[:key] = ENV['BOUNDARY_API_KEY'] unless ENV['BOUNDARY_API_KEY'].nil?
+abort("Please define BOUNDARY_ORG_ID and BOUNDARY_API_KEY variables.") unless (auth[:org] && auth[:key])
+
+require 'optparse'
+require_relative '../lib/boundary'                                                                            
+
+@options = {}
+
+optparse = OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} [options]"
+
+  @options[:name] = nil
+  opts.on("-n", "--name name", "Name of meter (probably the hostname)") do |name|
+    @options[:name] = name
+  end
+  @options[:delete] = nil
+  opts.on("-d", "--delete", "Delete meter. Requires -n.") do |delete|
+    @options[:delete] = true
+  end
+  @options[:list] = nil
+  opts.on("-l", "--list", "List meters") do |list|
+    @options[:list] = true
+  end
+  opts.on( "-h", "--help", "Display this screen" ) do
+    puts opts
+    exit
+  end
+end
+
+optparse.parse!
+
+if (@options[:list].nil? && @options[:delete].nil?)
+  puts "#{$0} argument error: List or Delete required"
+  exit 2
+elsif (@options[:delete] && @options[:name].nil?)
+  puts "#{$0} argument error: Name required for delete"
+  exit 2
+end
+
+def list(auth)
+  meters = Boundary::MeterManager.new(auth)
+  printf "%-40s %-20s %s\n", "Name", "ID", "Updated"
+  meters.list.each do |m|
+    printf "%-40s %s %s\n", m['name'], m['id'], m['updated_at']
+  end
+end
+
+def delete(auth,name)
+  meters = Boundary::MeterManager.new(auth)
+  meters.delete(name)
+  puts "Deleted #{name}."
+end
+
+if @options[:list]
+  list(auth)
+elsif @options[:delete]
+  delete(auth,@options[:name])
+end
+
