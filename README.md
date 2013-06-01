@@ -1,7 +1,7 @@
 boundary.rb
 =======
 
-A ruby library for the ![Boundary](http://boundary.com) API.
+A ruby library for the [Boundary](http://boundary.com) API.
 
 Currently only meter list, search and delete are supported.
 
