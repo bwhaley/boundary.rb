@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
 
+# Define require_relative method for younger rubies
 unless Kernel.respond_to?(:require_relative)
   module Kernel
     def require_relative(path)
@@ -8,6 +9,7 @@ unless Kernel.respond_to?(:require_relative)
   end
 end
 
+# Read Boundary credentials
 auth = {}
 auth[:org] = ENV['BOUNDARY_ORG_ID'] unless ENV['BOUNDARY_ORG_ID'].nil?
 auth[:key] = ENV['BOUNDARY_API_KEY'] unless ENV['BOUNDARY_API_KEY'].nil?
@@ -15,6 +17,7 @@ abort("Please define BOUNDARY_ORG_ID and BOUNDARY_API_KEY variables.") unless (a
 
 require 'rubygems'
 require 'optparse'
+require 'pp'
 require_relative '../lib/boundary'                                                                            
 
 @options = {}
@@ -23,7 +26,7 @@ optparse = OptionParser.new do |opts|
   opts.banner = "Usage: #{$0} [options]"
 
   @options[:name] = nil
-  opts.on("-n", "--name name", "Name of meter (probably the hostname)") do |name|
+  opts.on("-n", "--name name", "Name of meter (usually the hostname)") do |name|
     @options[:name] = name
   end
   @options[:delete] = nil
@@ -34,6 +37,10 @@ optparse = OptionParser.new do |opts|
   opts.on("-l", "--list", "List meters") do |list|
     @options[:list] = true
   end
+  @options[:query] = nil
+  opts.on("-s", "--search query", "Search for meters and annotations. Wildcards accepted (wrap in '')") do |query|
+    @options[:query] = query
+  end
   opts.on( "-h", "--help", "Display this screen" ) do
     puts opts
     exit
@@ -42,8 +49,8 @@ end
 
 optparse.parse!
 
-if (@options[:list].nil? && @options[:delete].nil?)
-  puts "#{$0} argument error: List or Delete required"
+if (@options[:list].nil? && @options[:delete].nil? && @options[:query].nil?)
+  puts "#{$0} argument error: List, Search or Delete required"
   exit 2
 elsif (@options[:delete] && @options[:name].nil?)
   puts "#{$0} argument error: Name required for delete"
@@ -60,13 +67,32 @@ end
 
 def delete(auth,name)
   meters = Boundary::MeterManager.new(auth)
-  meters.delete(name)
-  puts "Deleted #{name}."
+  case meters.delete(name)
+  when nil
+    puts "Meter #{name} not found."
+  else
+    puts "Deleted #{name}."
+  end
+end
+
+def search(auth,query)
+  puts "Searching for #{query}..."
+  meters = Boundary::Search.new(auth)
+  case (results=meters.search(query))
+  when nil
+    puts "No meters or annotiations matching #{query} were found."
+  else
+    results.each do |result|
+      puts result['body']['name']+' '+result['id']
+    end
+  end
 end
 
 if @options[:list]
   list(auth)
 elsif @options[:delete]
   delete(auth,@options[:name])
+elsif @options[:query]
+  search(auth,@options[:query])
 end
 
