@@ -37,6 +37,21 @@ optparse = OptionParser.new do |opts|
   opts.on("-l", "--list", "List meters") do |list|
     @options[:list] = true
   end
+  @options[:create] = nil
+  opts.on("-c", "--create <name>", "Create a new saved search called <name>. Requires -q") do |create|
+    @options[:create] = create
+  end
+  query_text = "A Boundary dynamic group valid query string. Requires -c
+                                      Valid query parameters are
+                                      name, tag, meter_version, export_address, nic_ip, nic_mac, os_distribution_name,
+                                      os_machine, os_nodename, os_release, os_sysname, os_version
+                                      These should be separated by AND/OR and can be grouped with parenthesis
+                                      Example: '(name:*web* AND tag:*us-west-2*) OR (name:*db* AND nic_ip:*10.0.0.10*)'
+                                      NOTE: This method does not sanity check the query string!"
+  @options[:ss] = nil
+  opts.on("-q", "--query <query parameters>", query_text) do |ss|
+    @options[:ss] = ss
+  end
   @options[:query] = nil
   opts.on("-s", "--search query", "Search for meters and annotations. Wildcards accepted (wrap in '')") do |query|
     @options[:query] = query
@@ -47,14 +62,23 @@ optparse = OptionParser.new do |opts|
   end
 end
 
-optparse.parse!
+begin
+  optparse.parse!
+rescue OptionParser::ParseError => e
+  puts "OptionParser encountered an error. #{e}"
+  exit 1
+end
 
-if (@options[:list].nil? && @options[:delete].nil? && @options[:query].nil?)
-  puts "#{$0} argument error: List, Search or Delete required"
-  exit 2
+optionserror = []
+if (@options[:list].nil? && @options[:delete].nil? && @options[:query].nil? && @options[:create].nil?)
+  optionserror << "List, Search, Create or Delete required"
+elsif (@options[:create] && @options[:ss].nil?)
+  optionserror << "create (-c) requires query (-q) argument."
 elsif (@options[:delete] && @options[:name].nil?)
-  puts "#{$0} argument error: Name required for delete"
-  exit 2
+  optionserror << "Name required for delete"
+end
+unless optionserror.empty?
+  abort "#{$0} syntax error: #{optionserror.join("\n")}"
 end
 
 def list(auth)
@@ -88,11 +112,24 @@ def search(auth,query)
   end
 end
 
+def create(auth, name, qp, type='meter')
+  puts "Creating saved-search '#{name}' with query '#{qp}'..."
+  s = Boundary::Search.new(auth)
+  case (id=s.create(name, qp, type))
+  when nil
+    puts "Saved search could not be created."
+  else
+    puts "Search created with ID #{id}"
+  end 
+end
+
 if @options[:list]
   list(auth)
 elsif @options[:delete]
   delete(auth,@options[:name])
 elsif @options[:query]
   search(auth,@options[:query])
+elsif @options[:create]
+  create(auth, @options[:create], @options[:ss])
 end
 

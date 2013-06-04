@@ -24,6 +24,17 @@ module Boundary
       }
     end
   end
+
+  def post(url, json, headers)
+    RestClient.send('post', url, json, headers) { |response, request, result| 
+        case response.code.to_s
+        when /201/
+          JSON.parse(response) 
+        else
+          raise "Error #{response.code} from Boundary API."
+        end
+    }
+  end
   
   extend self
 end
